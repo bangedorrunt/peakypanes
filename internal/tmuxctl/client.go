@@ -77,20 +77,21 @@ func (c *Client) EnsureSession(ctx context.Context, opts Options) (Result, error
 		return Result{}, fmt.Errorf("start dir %q does not exist", startDir)
 	}
 
+	setupCtx := ctx
 	if opts.Timeout > 0 {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
+		setupCtx, cancel = context.WithTimeout(ctx, opts.Timeout)
 		defer cancel()
 	}
 
-	exists, err := c.sessionExists(ctx, opts.Session)
+	exists, err := c.sessionExists(setupCtx, opts.Session)
 	if err != nil {
 		return Result{}, err
 	}
 
 	res := Result{}
 	if !exists {
-		if err := c.createGrid(ctx, opts.Session, startDir, opts.Layout); err != nil {
+		if err := c.createGrid(setupCtx, opts.Session, startDir, opts.Layout); err != nil {
 			return Result{}, err
 		}
 		res.Created = true
@@ -100,7 +101,7 @@ func (c *Client) EnsureSession(ctx context.Context, opts Options) (Result, error
 		return res, nil
 	}
 
-	if err := c.attach(ctx, opts.Session); err != nil {
+	if err := c.attach(context.Background(), opts.Session); err != nil {
 		return res, err
 	}
 	res.Attached = true
