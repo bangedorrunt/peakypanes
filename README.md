@@ -1,5 +1,11 @@
 # 🎩 Peaky Panes
 
+```
+████    █████    ███    █   █   █   █    ████      ███    █   █    █████    ████
+█████   ████    █████   ████     ███     █████    █████   ███ █    ████    ████ 
+█       █████   █   █   █  ██     █      █        █   █   █  ██    █████   █████
+```
+
 **Tmux layout manager with YAML-based configuration.**
 
 Define your tmux layouts in YAML, share them with your team via git, and get consistent development environments everywhere.
@@ -17,7 +23,7 @@ Define your tmux layouts in YAML, share them with your team via git, and get con
 ### Install
 
 ```bash
-go install github.com/kregenrek/tmuxman/cmd/peakypanes@latest
+go install github.com/regenrek/peakypanes/cmd/peakypanes@latest
 ```
 
 ### Usage
