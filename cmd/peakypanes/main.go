@@ -721,8 +721,8 @@ func createSessionWithLayout(ctx context.Context, client *tmuxctl.Client, sessio
 	}
 
 	// Apply peakypanes default tmux options (session-scoped, not global)
-	// remain-on-exit: keeps panes open after command exits/crashes for debugging
-	_ = client.SetOption(ctx, session, "remain-on-exit", "on")
+	// remain-on-exit: off lets panes close normally when commands exit
+	_ = client.SetOption(ctx, session, "remain-on-exit", "off")
 
 	// Apply custom tmux options from layout config
 	for option, value := range layoutCfg.Settings.TmuxOptions {

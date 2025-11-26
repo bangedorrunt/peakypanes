@@ -407,7 +407,7 @@ Layouts are loaded in this order (first match wins):
 
 ### Keep Crashed Panes Visible
 
-Peaky Panes sets `remain-on-exit: on` by default, so crashed commands stay visible for debugging. Press `Enter` in an exited pane to respawn the shell.
+Peaky Panes sets `remain-on-exit: off` by default, so panes close normally when commands exit. Set `remain-on-exit: on` in your layout's `tmux_options` if you want crashed commands to stay visible for debugging.
 
 ### Use `layout: tiled` for Grids
 
