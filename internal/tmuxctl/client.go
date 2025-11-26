@@ -424,6 +424,22 @@ func isNestedTmuxErr(err error) bool {
 	return strings.Contains(msg, "nested")
 }
 
+// SetOption sets a tmux option for a session. Use "-g" as session for global options.
+func (c *Client) SetOption(ctx context.Context, session, option, value string) error {
+	args := []string{"set-option"}
+	if session != "" && session != "-g" {
+		args = append(args, "-t", session)
+	} else if session == "-g" {
+		args = append(args, "-g")
+	}
+	args = append(args, option, value)
+	cmd := c.run(ctx, c.bin, args...)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return wrapTmuxErr("set-option", err, out)
+	}
+	return nil
+}
+
 // SendKeys sends keystrokes to a target pane.
 func (c *Client) SendKeys(ctx context.Context, target string, keys ...string) error {
 	if target == "" {
