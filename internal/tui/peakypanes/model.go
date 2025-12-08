@@ -668,19 +668,25 @@ func (m Model) attachProject(p Project) tea.Cmd {
 
 	// If inside tmux, use switch-client; otherwise use attach
 	if m.insideTmux {
-		return tea.ExecProcess(
-			exec.Command("tmux", "switch-client", "-t", session),
-			func(err error) tea.Msg {
-				return nil
-			},
+		return tea.Sequence(
+			tea.ExecProcess(
+				exec.Command("tmux", "switch-client", "-t", session),
+				func(err error) tea.Msg {
+					return nil
+				},
+			),
+			tea.Quit,
 		)
 	}
 
-	return tea.ExecProcess(
-		exec.Command("tmux", "attach-session", "-t", session),
-		func(err error) tea.Msg {
-			return nil
-		},
+	return tea.Sequence(
+		tea.ExecProcess(
+			exec.Command("tmux", "attach-session", "-t", session),
+			func(err error) tea.Msg {
+				return nil
+			},
+		),
+		tea.Quit,
 	)
 }
 
@@ -694,20 +700,26 @@ func (m Model) startProject(p Project) tea.Cmd {
 		args = append(args, "--layout", p.Layout)
 	}
 
-	return tea.ExecProcess(
-		exec.Command("peakypanes", args...),
-		func(err error) tea.Msg {
-			return nil
-		},
+	return tea.Sequence(
+		tea.ExecProcess(
+			exec.Command("peakypanes", args...),
+			func(err error) tea.Msg {
+				return nil
+			},
+		),
+		tea.Quit,
 	)
 }
 
 func (m Model) startSessionAtPath(path string) tea.Cmd {
-	return tea.ExecProcess(
-		exec.Command("peakypanes", "start", "--path", path),
-		func(err error) tea.Msg {
-			return nil
-		},
+	return tea.Sequence(
+		tea.ExecProcess(
+			exec.Command("peakypanes", "start", "--path", path),
+			func(err error) tea.Msg {
+				return nil
+			},
+		),
+		tea.Quit,
 	)
 }
 

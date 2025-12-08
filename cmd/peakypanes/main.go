@@ -166,7 +166,7 @@ func runMenu() {
 		fatal("failed to initialize: %v", err)
 	}
 
-	p := tea.NewProgram(model, tea.WithAltScreen())
+	p := tea.NewProgram(model, tea.WithAltScreen(), tea.WithoutBracketedPaste())
 	if _, err := p.Run(); err != nil {
 		fatal("TUI error: %v", err)
 	}
@@ -741,7 +741,7 @@ func createSessionWithLayout(ctx context.Context, client *tmuxctl.Client, sessio
 	for i := 1; i < len(firstWindow.Panes); i++ {
 		pane := firstWindow.Panes[i]
 		vertical := pane.Split == "vertical" || pane.Split == "v"
-		
+
 		// Parse size percentage
 		percent := 0
 		if pane.Size != "" {

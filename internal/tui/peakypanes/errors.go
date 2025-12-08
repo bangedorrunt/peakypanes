@@ -59,6 +59,12 @@ type SessionStartedMsg struct {
 	Err     error
 }
 
+// SessionAttachedMsg signals a session was attached/switched to.
+type SessionAttachedMsg struct {
+	Session string
+	Err     error
+}
+
 // ===== Commands =====
 
 // NewErrorCmd creates a command that sends an ErrorMsg.
