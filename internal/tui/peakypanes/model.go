@@ -323,53 +323,72 @@ func (m *Model) setupProjectPicker() {
 func (m *Model) scanGitProjects() {
 	m.gitProjects = nil
 
-	home, err := os.UserHomeDir()
+	// Load config to get project paths
+	config, err := layout.LoadConfig("")
 	if err != nil {
-		return
-	}
-
-	projectsDir := filepath.Join(home, "projects")
-	if _, err := os.Stat(projectsDir); os.IsNotExist(err) {
-		return
-	}
-
-	// Walk through all directories recursively
-	_ = filepath.WalkDir(projectsDir, func(path string, d os.DirEntry, err error) error {
+		// If config fails to load, use default workspace path
+		home, err := os.UserHomeDir()
 		if err != nil {
-			return nil // Skip errors, continue walking
+			return
+		}
+		config = &layout.Config{
+			ProjectPaths: []string{filepath.Join(home, "workspace")},
+		}
+	}
+
+	// If no project paths configured, use default workspace
+	if len(config.ProjectPaths) == 0 {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return
+		}
+		config.ProjectPaths = []string{filepath.Join(home, "workspace")}
+	}
+
+	// Scan each configured project path
+	for _, projectsDir := range config.ProjectPaths {
+		if _, err := os.Stat(projectsDir); os.IsNotExist(err) {
+			continue // Skip non-existent paths
 		}
 
-		// Skip hidden directories entirely
-		if d.IsDir() && strings.HasPrefix(d.Name(), ".") {
-			return filepath.SkipDir
-		}
+		// Walk through all directories recursively
+		_ = filepath.WalkDir(projectsDir, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return nil // Skip errors, continue walking
+			}
 
-		// Skip node_modules, vendor, etc.
-		if d.IsDir() {
-			name := d.Name()
-			if name == "node_modules" || name == "vendor" || name == "__pycache__" || name == ".venv" || name == "venv" {
+			// Skip hidden directories entirely
+			if d.IsDir() && strings.HasPrefix(d.Name(), ".") {
 				return filepath.SkipDir
 			}
-		}
 
-		// Check if this directory has a .git folder
-		if d.IsDir() && d.Name() != ".git" {
-			gitPath := filepath.Join(path, ".git")
-			if _, err := os.Stat(gitPath); err == nil {
-				// Get relative path from projects dir for a nicer name
-				relPath, _ := filepath.Rel(projectsDir, path)
-				m.gitProjects = append(m.gitProjects, GitProject{
-					Name: relPath,
-					Path: path,
-				})
-				// Don't descend into this directory's subdirectories
-				// (nested git repos are handled by git submodules, not separate projects)
-				return filepath.SkipDir
+			// Skip node_modules, vendor, etc.
+			if d.IsDir() {
+				name := d.Name()
+				if name == "node_modules" || name == "vendor" || name == "__pycache__" || name == ".venv" || name == "venv" {
+					return filepath.SkipDir
+				}
 			}
-		}
 
-		return nil
-	})
+			// Check if this directory has a .git folder
+			if d.IsDir() && d.Name() != ".git" {
+				gitPath := filepath.Join(path, ".git")
+				if _, err := os.Stat(gitPath); err == nil {
+					// Get relative path from projects dir for a nicer name
+					relPath, _ := filepath.Rel(projectsDir, path)
+					m.gitProjects = append(m.gitProjects, GitProject{
+						Name: relPath,
+						Path: path,
+					})
+					// Don't descend into this directory's subdirectories
+					// (nested git repos are handled by git submodules, not separate projects)
+					return filepath.SkipDir
+				}
+			}
+
+			return nil
+		})
+	}
 }
 
 func (m *Model) gitProjectsToItems() []list.Item {

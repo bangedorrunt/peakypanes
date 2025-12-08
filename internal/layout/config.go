@@ -56,7 +56,7 @@ type ProjectConfig struct {
 	Session string `yaml:"session"`
 	Path    string `yaml:"path"`
 	// Layout can be a string (reference) or inline LayoutConfig
-	Layout interface{} `yaml:"layout,omitempty"`
+	Layout interface{}       `yaml:"layout,omitempty"`
 	Vars   map[string]string `yaml:"vars,omitempty"`
 }
 
@@ -85,20 +85,21 @@ type GhosttySection struct {
 
 // Config is the root configuration structure for Peaky Panes.
 type Config struct {
-	Tmux       TmuxSection              `yaml:"tmux,omitempty"`
-	Ghostty    GhosttySection           `yaml:"ghostty,omitempty"`
-	LayoutDirs []string                 `yaml:"layout_dirs,omitempty"`
-	Layouts    map[string]*LayoutConfig `yaml:"layouts,omitempty"`
-	Projects   []ProjectConfig          `yaml:"projects,omitempty"`
-	Tools      ToolsConfig              `yaml:"tools,omitempty"`
+	Tmux         TmuxSection              `yaml:"tmux,omitempty"`
+	Ghostty      GhosttySection           `yaml:"ghostty,omitempty"`
+	LayoutDirs   []string                 `yaml:"layout_dirs,omitempty"`
+	Layouts      map[string]*LayoutConfig `yaml:"layouts,omitempty"`
+	Projects     []ProjectConfig          `yaml:"projects,omitempty"`
+	ProjectPaths []string                 `yaml:"project_paths,omitempty"`
+	Tools        ToolsConfig              `yaml:"tools,omitempty"`
 }
 
 // ProjectLocalConfig is the schema for .peakypanes.yml in project directories.
 type ProjectLocalConfig struct {
-	Session  string            `yaml:"session,omitempty"`
-	Layout   *LayoutConfig     `yaml:"layout,omitempty"`
-	Vars     map[string]string `yaml:"vars,omitempty"`
-	Tools    ToolsConfig       `yaml:"tools,omitempty"`
+	Session string            `yaml:"session,omitempty"`
+	Layout  *LayoutConfig     `yaml:"layout,omitempty"`
+	Vars    map[string]string `yaml:"vars,omitempty"`
+	Tools   ToolsConfig       `yaml:"tools,omitempty"`
 }
 
 // LoadConfig reads and parses a YAML config file.
@@ -174,7 +175,7 @@ func ExpandVars(s string, vars map[string]string, projectPath, projectName strin
 
 	// Pattern: ${VAR} or ${VAR:-default}
 	re := regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}`)
-	
+
 	result := re.ReplaceAllStringFunc(s, func(match string) string {
 		parts := re.FindStringSubmatch(match)
 		if len(parts) < 2 {
