@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/kregenrek/tmuxman/internal/util"
 )
 
 // TestStatusIcon tests the status icon helper function
@@ -111,7 +112,7 @@ func TestSanitizeSessionName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := sanitizeSessionName(tt.input)
+			got := util.SanitizeSessionName(tt.input)
 			if got != tt.want {
 				t.Errorf("sanitizeSessionName(%q) = %q, want %q", tt.input, got, tt.want)
 			}
@@ -246,7 +247,6 @@ func TestViewStateConstants(t *testing.T) {
 	states := map[ViewState]string{
 		StateHome:          "home",
 		StateProjectPicker: "picker",
-		StateConfirmKill:   "confirm",
 	}
 
 	seen := make(map[ViewState]bool)

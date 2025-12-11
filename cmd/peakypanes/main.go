@@ -15,6 +15,7 @@ import (
 	"github.com/kregenrek/tmuxman/internal/layout"
 	"github.com/kregenrek/tmuxman/internal/tmuxctl"
 	"github.com/kregenrek/tmuxman/internal/tui/peakypanes"
+	"github.com/kregenrek/tmuxman/internal/util"
 )
 
 const version = "0.1.0"
@@ -195,14 +196,14 @@ func runClone(args []string) {
 
 	// Check if directory already exists
 	if _, err := os.Stat(targetDir); err == nil {
-		fmt.Printf("📁 Directory exists: %s\n", targetDir)
+		util.InfoMessage(fmt.Sprintf("Directory exists: %s", targetDir))
 		fmt.Printf("   Starting session...\n\n")
 		// Just start the session
 		runStartWithPath(targetDir)
 		return
 	}
 
-	fmt.Printf("🔄 Cloning %s...\n", url)
+	util.InfoMessage(fmt.Sprintf("Cloning %s...", url))
 
 	// Clone the repository
 	cmd := exec.Command("git", "clone", url, targetDir)
@@ -212,7 +213,8 @@ func runClone(args []string) {
 		fatal("clone failed: %v", err)
 	}
 
-	fmt.Printf("\n✅ Cloned to %s\n\n", targetDir)
+	util.SuccessMessage(fmt.Sprintf("Cloned to %s", targetDir))
+	fmt.Println()
 
 	// Start session in the cloned directory
 	runStartWithPath(targetDir)
@@ -321,7 +323,7 @@ layout:
 		fatal("failed to write %s: %v", configPath, err)
 	}
 
-	fmt.Printf("✨ Created %s\n", configPath)
+	util.SuccessMessage(fmt.Sprintf("Created %s", configPath))
 	fmt.Printf("   Based on layout: %s\n", layoutName)
 	fmt.Printf("\n   Edit it to customize, then:\n")
 	fmt.Printf("   • Run 'peakypanes' to start the session\n")
@@ -403,7 +405,8 @@ tools:
 		fatal("failed to write config: %v", err)
 	}
 
-	fmt.Printf("✨ Initialized Peaky Panes!\n\n")
+	util.SuccessMessage("Initialized Peaky Panes!")
+	fmt.Println()
 	fmt.Printf("   Config: %s\n", configPath)
 	fmt.Printf("   Layouts: %s\n\n", layoutsDir)
 	fmt.Printf("   Next steps:\n")
@@ -521,7 +524,7 @@ func runKill(args []string) {
 		if err != nil {
 			fatal("cannot determine current directory: %v", err)
 		}
-		sessionName = sanitizeSessionName(filepath.Base(cwd))
+		sessionName = util.SanitizeSessionName(filepath.Base(cwd))
 	}
 
 	// Create tmux client
@@ -548,7 +551,7 @@ func runKill(args []string) {
 	}
 
 	if !found {
-		fmt.Printf("❌ Session '%s' not found\n", sessionName)
+		util.ErrorMessage(fmt.Sprintf("Session '%s' not found", sessionName))
 		if len(sessions) > 0 {
 			fmt.Printf("\n   Running sessions:\n")
 			for _, s := range sessions {
@@ -563,7 +566,7 @@ func runKill(args []string) {
 		fatal("failed to kill session: %v", err)
 	}
 
-	fmt.Printf("✅ Killed session '%s'\n", sessionName)
+	util.SuccessMessage(fmt.Sprintf("Killed session '%s'", sessionName))
 }
 
 func runStart(args []string) {
@@ -610,7 +613,7 @@ func runStart(args []string) {
 
 	// Default session name to directory name
 	if sessionName == "" {
-		sessionName = sanitizeSessionName(filepath.Base(projectPath))
+		sessionName = util.SanitizeSessionName(filepath.Base(projectPath))
 	}
 
 	// Load layouts
@@ -697,7 +700,8 @@ func runStart(args []string) {
 	}
 
 	fmt.Println()
-	fmt.Printf("   ✅ Session created!\n\n")
+	util.SuccessMessage("Session created!")
+	fmt.Println()
 
 	// Attach to session
 	attachToSession(client, sessionName)
@@ -769,7 +773,7 @@ func createSessionWithLayout(ctx context.Context, client *tmuxctl.Client, sessio
 	if firstWindow.Layout != "" {
 		windowTarget := fmt.Sprintf("%s:%s", session, firstWindow.Name)
 		if err := client.SelectLayout(ctx, windowTarget, firstWindow.Layout); err != nil {
-			fmt.Printf("   ⚠ Layout %s: %v\n", firstWindow.Layout, err)
+			util.WarningMessage(fmt.Sprintf("Layout %s: %v", firstWindow.Layout, err))
 		}
 	}
 
@@ -859,35 +863,6 @@ func attachToSession(client *tmuxctl.Client, session string) {
 			fmt.Printf("   Run: tmux attach -t %s\n", session)
 		}
 	}
-}
-
-func sanitizeSessionName(name string) string {
-	name = strings.ToLower(strings.TrimSpace(name))
-	if name == "" {
-		return "session"
-	}
-	var b strings.Builder
-	lastDash := false
-	for _, r := range name {
-		switch {
-		case r >= 'a' && r <= 'z':
-			b.WriteRune(r)
-			lastDash = false
-		case r >= '0' && r <= '9':
-			b.WriteRune(r)
-			lastDash = false
-		case r == '-' || r == '_' || r == ' ':
-			if !lastDash {
-				b.WriteRune('-')
-				lastDash = true
-			}
-		}
-	}
-	result := strings.Trim(b.String(), "-")
-	if result == "" {
-		return "session"
-	}
-	return result
 }
 
 func fatal(format string, args ...interface{}) {

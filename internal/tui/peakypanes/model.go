@@ -9,6 +9,9 @@ import (
 	"strings"
 	"time"
 
+	cfg "github.com/kregenrek/tmuxman/internal/config"
+	"github.com/kregenrek/tmuxman/internal/util"
+
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -25,7 +28,6 @@ type ViewState int
 const (
 	StateHome ViewState = iota
 	StateProjectPicker
-	StateConfirmKill
 )
 
 // GitProject represents a project directory with .git
@@ -71,23 +73,10 @@ func (p Project) Description() string {
 
 func (p Project) FilterValue() string { return p.Name }
 
-// Config structures for YAML.
-type projectConfig struct {
-	Name    string `yaml:"name"`
-	Session string `yaml:"session"`
-	Path    string `yaml:"path"`
-	Layout  string `yaml:"layout"`
-}
-
-type toolConfig struct {
-	Cmd        string `yaml:"cmd"`
-	WindowName string `yaml:"window_name"`
-}
-
-type toolsConfig struct {
-	CursorAgent toolConfig `yaml:"cursor_agent"`
-	CodexNew    toolConfig `yaml:"codex_new"`
-}
+// Use config types from the config package
+type projectConfig = cfg.ProjectConfig
+type toolConfig = cfg.ToolConfig
+type toolsConfig = cfg.ToolsConfig
 
 type config struct {
 	Tmux struct {
@@ -183,9 +172,6 @@ type Model struct {
 	// Project picker view
 	projectPicker list.Model
 	gitProjects   []GitProject
-
-	// Confirm kill dialog
-	confirmProject *Project
 
 	// Config
 	configPath string
@@ -459,14 +445,14 @@ func (m *Model) loadConfig() error {
 			Name:    pc.Name,
 			Session: pc.Session,
 			Path:    expandPath(pc.Path),
-			Layout:  pc.Layout,
+			Layout:  util.GetStringOrEmpty(pc.Layout),
 			Status:  StatusStopped,
 		}
 		if p.Name == "" && p.Session != "" {
 			p.Name = p.Session
 		}
 		if p.Session == "" && p.Name != "" {
-			p.Session = sanitizeSessionName(p.Name)
+			p.Session = util.SanitizeSessionName(p.Name)
 		}
 		m.projects = append(m.projects, p)
 	}
@@ -563,8 +549,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateHome(msg)
 		case StateProjectPicker:
 			return m.updateProjectPicker(msg)
-		case StateConfirmKill:
-			return m.updateConfirmKill(msg)
 		}
 	}
 
@@ -655,35 +639,6 @@ func (m Model) updateProjectPicker(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m Model) updateConfirmKill(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "y", "enter":
-		if m.confirmProject != nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
-			session := m.confirmProject.Session
-			if err := m.tmux.KillSession(ctx, session); err != nil {
-				m.state = StateHome
-				return m, m.list.NewStatusMessage(FormatStatusError(err))
-			}
-			_ = m.refreshStatuses()
-			m.list.SetItems(m.projectsToItems())
-			m.confirmProject = nil
-			m.state = StateHome
-			return m, m.list.NewStatusMessage(FormatStatusSuccess(fmt.Sprintf("Killed session %s", session)))
-		}
-		m.state = StateHome
-		return m, nil
-
-	case "n", "esc":
-		m.confirmProject = nil
-		m.state = StateHome
-		return m, nil
-	}
-
-	return m, nil
-}
-
 func (m Model) attachProject(p Project) tea.Cmd {
 	session := p.Session
 
@@ -764,8 +719,6 @@ func (m Model) View() string {
 		return m.viewHome()
 	case StateProjectPicker:
 		return appStyle.Render(m.projectPicker.View())
-	case StateConfirmKill:
-		return m.viewConfirmKill()
 	default:
 		return m.viewHome()
 	}
@@ -785,39 +738,6 @@ func (m Model) viewHome() string {
 	s.WriteString(m.list.View())
 
 	return appStyle.Render(s.String())
-}
-
-func (m Model) viewConfirmKill() string {
-	// Render list view dimmed in background - using centralized theme
-	listView := theme.ListDimmed.Render(m.list.View())
-
-	// Dialog content
-	var dialogContent strings.Builder
-
-	dialogContent.WriteString(dialogTitleStyle.Render("⚠️  Kill Session?"))
-	dialogContent.WriteString("\n\n")
-
-	if m.confirmProject != nil {
-		dialogContent.WriteString(theme.DialogLabel.Render("Session: "))
-		dialogContent.WriteString(theme.DialogValue.Render(m.confirmProject.Session))
-		dialogContent.WriteString("\n")
-		dialogContent.WriteString(theme.DialogLabel.Render("Project: "))
-		dialogContent.WriteString(theme.DialogValue.Render(m.confirmProject.Name))
-		dialogContent.WriteString("\n\n")
-	}
-
-	dialogContent.WriteString(theme.DialogNote.Render("Kill the session: Notice this won't delete your project"))
-	dialogContent.WriteString("\n\n")
-
-	dialogContent.WriteString(theme.DialogChoiceKey.Render("y"))
-	dialogContent.WriteString(theme.DialogChoiceSep.Render(" confirm • "))
-	dialogContent.WriteString(theme.DialogChoiceKey.Render("n"))
-	dialogContent.WriteString(theme.DialogChoiceSep.Render(" cancel"))
-
-	dialog := dialogStyle.Render(dialogContent.String())
-
-	// Combine list and dialog
-	return appStyle.Render(listView + "\n\n" + dialog)
 }
 
 // Helper functions
@@ -862,33 +782,4 @@ func shortenPath(p string) string {
 		return "~" + strings.TrimPrefix(p, home)
 	}
 	return p
-}
-
-func sanitizeSessionName(name string) string {
-	name = strings.ToLower(strings.TrimSpace(name))
-	if name == "" {
-		return "session"
-	}
-	var b strings.Builder
-	lastDash := false
-	for _, r := range name {
-		switch {
-		case r >= 'a' && r <= 'z':
-			b.WriteRune(r)
-			lastDash = false
-		case r >= '0' && r <= '9':
-			b.WriteRune(r)
-			lastDash = false
-		case r == '-' || r == '_' || r == ' ':
-			if !lastDash {
-				b.WriteRune('-')
-				lastDash = true
-			}
-		}
-	}
-	result := strings.Trim(b.String(), "-")
-	if result == "" {
-		return "session"
-	}
-	return result
 }
