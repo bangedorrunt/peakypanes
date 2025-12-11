@@ -424,8 +424,10 @@ func (m *Model) delegateUpdate(msg tea.Msg, lm *list.Model) tea.Cmd {
 		case key.Matches(msg, m.delegateKeys.kill):
 			if item, ok := lm.SelectedItem().(Project); ok {
 				if item.Status != StatusStopped {
-					m.confirmProject = &item
-					m.state = StateConfirmKill
+					if err := m.tmux.KillSession(context.Background(), item.Name); err != nil {
+						return lm.NewStatusMessage(FormatStatusError(err))
+					}
+					return lm.NewStatusMessage(FormatStatusSuccess("Session killed"))
 				} else {
 					return lm.NewStatusMessage(FormatStatusWarning("Session not running"))
 				}
